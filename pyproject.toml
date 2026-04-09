@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "pyspark-glue-clustering"
+version = "0.1.0"
+description = "Semantic hierarchical clustering pipeline for AWS Glue 5.0 + PySpark"
+requires-python = ">=3.10"
+dependencies = [
+    "pyspark>=3.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["clustering_pipeline/tests"]
+asyncio_mode = "auto"
