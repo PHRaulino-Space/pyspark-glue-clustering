@@ -113,12 +113,16 @@ class ClusteringConfig:
 @dataclass
 class EmbeddingConfig:
     """
-    Embedding generation configuration.
+    Embedding generation configuration for the Edi Bins API.
     Does NOT include URL, key or model name — those belong in the concrete client.
+
+    Edi Bins API limits:
+        - max 20 parallel requests  (max_concurrent)
+        - max 500 items per input array (batch_size)
     """
 
-    batch_size: int            # 1000
-    max_concurrent: int        # 50
+    batch_size: int            # 500 — Edi Bins limit per request
+    max_concurrent: int        # 20  — Edi Bins parallel request limit
     retry_attempts: int        # 3
     retry_delay_seconds: float  # 2.0
     vector_dimensions: int     # defined by the API used
@@ -126,8 +130,8 @@ class EmbeddingConfig:
     @classmethod
     def from_env(cls) -> "EmbeddingConfig":
         return cls(
-            batch_size=_env_int("EMBEDDING_BATCH_SIZE", 1000),
-            max_concurrent=_env_int("EMBEDDING_MAX_CONCURRENT", 50),
+            batch_size=_env_int("EMBEDDING_BATCH_SIZE", 500),
+            max_concurrent=_env_int("EMBEDDING_MAX_CONCURRENT", 20),
             retry_attempts=_env_int("EMBEDDING_RETRY_ATTEMPTS", 3),
             retry_delay_seconds=_env_float("EMBEDDING_RETRY_DELAY_SECONDS", 2.0),
             vector_dimensions=_env_int("EMBEDDING_VECTOR_DIMENSIONS", 384),

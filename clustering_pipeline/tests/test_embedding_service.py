@@ -27,12 +27,14 @@ class MockEmbeddingClient(BaseEmbeddingClient):
     """
     Deterministic mock that returns pre-seeded vectors without any HTTP calls.
     Supports simulated failures to exercise retry logic.
+    Tracks refresh_token() calls for assertion in tests.
     """
 
     def __init__(self, dims: int = 32, fail_first_n: int = 0):
         self._dims = dims
         self._fail_count = fail_first_n
         self._call_count = 0
+        self.refresh_count = 0  # exposed for test assertions
 
     async def embed_batch(self, texts: list) -> list:
         self._call_count += 1
@@ -42,6 +44,10 @@ class MockEmbeddingClient(BaseEmbeddingClient):
 
     async def embed_single(self, text: str) -> list:
         return [0.0] * self._dims
+
+    async def refresh_token(self) -> None:
+        """No-op for tests; tracks call count."""
+        self.refresh_count += 1
 
     @property
     def vector_dimensions(self) -> int:
@@ -154,6 +160,26 @@ class TestEmbeddingServiceHappyPath:
 
         nulls = result.filter(F.col("embedding").isNull()).count()
         assert nulls == 0, f"{nulls} rows have null embedding"
+
+    def test_refresh_token_called_per_batch(self, spark, embedding_config, phrase_df):
+        """
+        refresh_token() must be called once per batch chunk (120 phrases / 50 per batch = 3 chunks).
+        Verifies the Edi Bins token refresh contract.
+        """
+        client = MockEmbeddingClient(dims=32)
+        svc = EmbeddingService(
+            client=client,
+            config=embedding_config,
+            logger=PipelineLogger("test", "EmbeddingService"),
+        )
+        asyncio.run(
+            svc.process_dataframe(df=phrase_df, text_col="frase", id_col="id", spark=spark)
+        )
+        # 120 phrases / batch_size=50 → 3 chunks → 3 token refreshes
+        expected_chunks = -(-120 // embedding_config.batch_size)  # ceil division
+        assert client.refresh_count == expected_chunks, (
+            f"Expected {expected_chunks} refresh_token() calls, got {client.refresh_count}"
+        )
 
 
 # ---------------------------------------------------------------------------
